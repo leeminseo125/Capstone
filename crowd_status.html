@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>셔틀버스 혼잡도 실시간 현황</title>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #f8f9fa; margin: 0; padding: 0; }
+        h2 { background: #003366; color: #fff; margin: 0; padding: 1rem; }
+        table { border-collapse: collapse; width: 90%; margin: 2rem auto; background: #fff; box-shadow: 0 2px 8px #0001; }
+        th, td { padding: 0.8rem 1.2rem; border-bottom: 1px solid #eee; text-align: center; }
+        th { background: #e9ecef; }
+        .badge { padding: 0.3em 0.9em; border-radius: 1em; color: #fff; font-weight: bold; }
+        .원활 { background: #28a745; }
+        .보통 { background: #ffc107; color: #333; }
+        .혼잡 { background: #dc3545; }
+        .status { margin: 1rem auto; width: 90%; text-align: right; color: #555; font-size: 1em; }
+    </style>
+</head>
+<body>
+    <h2>셔틀버스 혼잡도 관리자 대시보드</h2>
+    <div style="display: flex; justify-content: space-around; margin-top: 2rem;">
+        <div style="width: 45%; background: #fff; box-shadow: 0 2px 8px #0001; padding: 1.5rem; border-radius: 1rem;">
+            <h3 style="margin-top:0; color:#003366;">DB 저장 혼잡도 이력</h3>
+            <div class="status" id="db-status">DB 데이터를 불러오는 중...</div>
+            <table id="db-table" style="display:none;">
+                <thead>
+                    <tr>
+                        <th>정류장명</th>
+                        <th>시간</th>
+                        <th>인원수</th>
+                        <th>혼잡도 등급</th>
+                    </tr>
+                </thead>
+                <tbody id="db-tbody"></tbody>
+            </table>
+        </div>
+        <div style="width: 45%; background: #fff; box-shadow: 0 2px 8px #0001; padding: 1.5rem; border-radius: 1rem;">
+            <h3 style="margin-top:0; color:#003366;">실시간 추론 결과</h3>
+            <div class="status" id="status">실시간 데이터를 불러오는 중...</div>
+            <table id="crowd-table" style="display:none;">
+                <thead>
+                    <tr>
+                        <th>구역 번호</th>
+                        <th>탐지 인원수</th>
+                        <th>혼잡도 등급</th>
+                    </tr>
+                </thead>
+                <tbody id="crowd-tbody"></tbody>
+            </table>
+        </div>
+        <div style="width: 45%; background: #fff; box-shadow: 0 2px 8px #0001; padding: 1.5rem; border-radius: 1rem;">
+            <h3 style="margin-top:0; color:#003366;">실시간 웹캠 영상</h3>
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                <div>
+                    <span style="font-weight:bold;">원본 웹캠</span><br>
+                    <img src="/webcam_stream" style="width:100%;max-width:480px;border:2px solid #003366;">
+                </div>
+                <div>
+                    <span style="font-weight:bold;">추론 결과</span><br>
+                    <img src="/inference_stream" style="width:100%;max-width:480px;border:2px solid #28a745;">
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        async function fetchDbData() {
+            const statusDiv = document.getElementById('db-status');
+            const table = document.getElementById('db-table');
+            const tbody = document.getElementById('db-tbody');
+            try {
+                const res = await fetch('/admin/stats');
+                const data = await res.json();
+                if (!data.results || data.count === 0) {
+                    statusDiv.textContent = 'DB에 저장된 데이터가 없습니다.';
+                    table.style.display = 'none';
+                    return;
+                }
+                statusDiv.textContent = `총 ${data.count}건`;
+                tbody.innerHTML = '';
+                data.results.forEach(row => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${row.station}</td>
+                        <td>${row.datetime}</td>
+                        <td>${row.count}</td>
+                        <td><span class="badge ${row.congestion_level}">${row.congestion_level}</span></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                table.style.display = '';
+            } catch (e) {
+                statusDiv.textContent = '서버 연결 오류 또는 데이터 없음';
+                table.style.display = 'none';
+            }
+        }
+        async function fetchRealtimeData() {
+            const statusDiv = document.getElementById('status');
+            const table = document.getElementById('crowd-table');
+            const tbody = document.getElementById('crowd-tbody');
+            try {
+                const res = await fetch('/admin/latest');
+                const data = await res.json();
+                if (data.message) {
+                    statusDiv.textContent = data.message;
+                    table.style.display = 'none';
+                    return;
+                }
+                statusDiv.textContent = `최종 업데이트: ${data.timestamp}`;
+                tbody.innerHTML = '';
+                data.regions.forEach(region => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${region.region_id}</td>
+                        <td>${region.head_count}</td>
+                        <td><span class="badge ${region.congestion_level}">${region.congestion_level}</span></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                table.style.display = '';
+            } catch (e) {
+                statusDiv.textContent = '서버 연결 오류 또는 데이터 없음';
+                table.style.display = 'none';
+            }
+        }
+        fetchDbData();
+        fetchRealtimeData();
+        setInterval(fetchDbData, 10000); // 10초마다 DB 갱신
+        setInterval(fetchRealtimeData, 5000); // 5초마다 실시간 갱신
+    </script>
+</body>
+</html>
