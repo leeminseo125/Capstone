@@ -9,14 +9,15 @@ conda install --file requirements.txt
 - 5월22일에 regions.yaml을 통한 좌표 지정 구현 예정
 
 ## 데이터 이동
-Capstone 디렉토리에서
+- need_code 디렉토리에서
+- 각각 다른 터미널에서
 - 스트리밍 서버 열기
 ```
-python need_code/video_loop_server.py
+uvicorn video_loop_server:app --host 0.0.0.0 --port 8080 --reload
 ```
 - 추론 서버 열기
 ```
-python need_code/yolo_server_flask.py
+uvicorn yolo_server_api:app --host 0.0.0.0 --port 8081 --reload
 ```
 - 코어 서버 열기
 ```
