@@ -5,7 +5,9 @@ import requests
 from PIL import Image
 import base64
 import time
-import threading
+import subprocess
+import sys
+import os
 
 st.set_page_config(page_title="YOLO Region Stream", layout="wide")
 st.title("🧠 YOLO 영역 기반 실시간 스트리밍")
@@ -41,7 +43,7 @@ def predict_regions(img):
     files = {'frame': ('frame.jpg', img_encoded.tobytes(), 'image/jpeg')}
     try:
         res = requests.post(YOLO_PREDICT_URL, files=files, timeout=5)
-        res.raise_for_status()  # HTTP 오류가 있으면 예외 발생
+        res.raise_for_status()
         data = res.json()
 
         region_counts = data.get("region_counts", {})
@@ -60,7 +62,26 @@ def predict_regions(img):
         st.error(f"YOLO 서버 요청 실패 또는 응답 문제: {e}")
         return {}, None
 
+def run_area_setting_script():
+    # 영역 설정 스크립트 파일명
+    script_path = os.path.join(os.path.dirname(__file__), "point.py")
+    python_exe = sys.executable
+    result = subprocess.run([python_exe, script_path])
+    if result.returncode == 0:
+        st.success("영역 좌표가 areas.txt에 저장되었습니다.")
+    else:
+        st.error("영역 설정 도중 오류가 발생했습니다.")
+
 def main():
+    if st.button("영역지정"):
+        run_area_setting_script()
+        # 최신 streamlit(1.18.0 이상)에서는 아래 코드 사용
+        try:
+            st.experimental_rerun()
+        except AttributeError:
+            st.warning("영역 설정이 완료되었습니다. 페이지를 새로고침(F5) 해주세요.")
+            st.stop()
+
     original_stream = stream_frames(ORIGINAL_VIDEO_URL)
 
     last_update = 0
@@ -71,7 +92,7 @@ def main():
             continue
 
         original_rgb = cv2.cvtColor(orig_frame, cv2.COLOR_BGR2RGB)
-        original_placeholder.image(Image.fromarray(original_rgb), use_container_width=True)
+        original_placeholder.image(Image.fromarray(original_rgb))
 
         now = time.time()
         if now - last_update > 0.5:
@@ -80,7 +101,7 @@ def main():
 
             if detected_img is not None:
                 detected_rgb = cv2.cvtColor(detected_img, cv2.COLOR_BGR2RGB)
-                detected_placeholder.image(Image.fromarray(detected_rgb), use_container_width=True)
+                detected_placeholder.image(Image.fromarray(detected_rgb))
 
             region1_placeholder.markdown(f"### 🟢 Region-01 Count: `{region_counts.get('region-01', 0)}`")
             region2_placeholder.markdown(f"### 🔵 Region-02 Count: `{region_counts.get('region-02', 0)}`")

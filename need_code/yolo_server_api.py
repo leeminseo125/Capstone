@@ -12,9 +12,15 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 app = FastAPI()
 
+areas = []
+with open('areas.txt', 'r', encoding='utf-8') as f:
+    for line in f:
+        coords = eval(line.strip().rstrip(','))
+        areas.append(coords)
+
 # 영역 정의
-region_1 = [(340, 228), (532, 224), (599, 395), (243, 364)]
-region_2 = [(395, 66), (374, 192), (568, 201), (647, 420), (802, 413), (764, 69)]
+region_1 = areas[0]
+region_2 = areas[1]
 
 regions = {
     "region-01": Polygon(region_1),
