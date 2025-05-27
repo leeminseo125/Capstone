@@ -8,6 +8,8 @@ import time
 import subprocess
 import sys
 import os
+import json
+from datetime import datetime
 
 st.set_page_config(page_title="YOLO Region Stream", layout="wide")
 st.title("🧠 YOLO 영역 기반 실시간 스트리밍")
@@ -56,6 +58,18 @@ def predict_regions(img):
         else:
             detected_img = None
 
+        # ----------- 여기서 결과를 json 파일로 저장 (이미지는 저장하지 않음) -----------
+        now = datetime.now()
+        now_file = now.strftime("%Y%m%d_%H%M%S")
+        result_dict = {
+            "region_counts": region_counts
+        }
+        os.makedirs('./results', exist_ok=True)
+        json_path = f'./results/result_{now_file}.json'
+        with open(json_path, 'w', encoding='utf-8') as f:
+            json.dump(result_dict, f, ensure_ascii=False, indent=2)
+        # ------------------------------------------------------------------------
+
         return region_counts, detected_img
 
     except Exception as e:
@@ -63,7 +77,6 @@ def predict_regions(img):
         return {}, None
 
 def run_area_setting_script():
-    # 영역 설정 스크립트 파일명
     script_path = os.path.join(os.path.dirname(__file__), "point.py")
     python_exe = sys.executable
     result = subprocess.run([python_exe, script_path])
@@ -75,7 +88,6 @@ def run_area_setting_script():
 def main():
     if st.button("영역지정"):
         run_area_setting_script()
-        # 최신 streamlit(1.18.0 이상)에서는 아래 코드 사용
         try:
             st.experimental_rerun()
         except AttributeError:
